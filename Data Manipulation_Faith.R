@@ -51,22 +51,7 @@ tour.xf <- tour.bin %>%
                             ifelse(as.numeric(TourPriceCat) == 7, 8,
                             ifelse(as.numeric(TourPriceCat) == 8, 1, NA))))))))) %>%
   # if email is missing, make it unavailable
-  mutate(Email = as.factor(if_else(is.na(as.character(Email)), "Unavailable", as.character(Email))))
-
-
-# now, impute the Age variable with the mode
-tour.imp <- tour.xf
-
-impute <- function(x,y) {
-  x[is.na(x)]<-y
-  x
-}
-
-mode <- function(x) {
-  ux <- unique(x)
-  ux[which.max(tabulate(match(x, ux)))]
-}
-
-Mode<-sapply(tour.imp["Age_num"],mode)
-
-tour.imp["Age_num"]<-as.data.frame(mapply(impute,x=tour.xf["Age_num"],y = Mode))
+  mutate(Email = as.factor(if_else(is.na(as.character(Email)), "Unavailable", as.character(Email)))) %>%
+  # drop unwanted variables for model
+  select(-starts_with("woe."), -TourCode, -Tour_Region, -SourceType, -State,
+         -Book_Months, -Age, -DB_Enter_Months, -TourPriceCat, -Promo_Disc)
