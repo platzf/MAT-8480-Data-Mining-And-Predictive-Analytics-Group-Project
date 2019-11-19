@@ -1,0 +1,145 @@
+---
+title: "Phase II Modeling"
+author: "Faith Platz"
+date: "11/11/2019"
+output: pdf_document
+---
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(caTools)
+library(caret)
+library(keras)
+library(pROC)
+library(ROCR)
+```
+
+```{r}
+load("tour_cleaned.RData")
+```
+
+```{r}
+# ANN
+tour.ann <- tour.imp
+vars.ann <- tour.ann %>% 
+  select(-Book_12Mo) %>% 
+  # select(Email, State.binned, TourCode.binned, Pax_Category, Pre_Departure,
+  #        Past_Trips, Overall_Impression, DB_Enter_Months_num, Book_Months_num,
+  #        Hotel_3orAbove, State.binned.NA, TourCode.binned.NA, Pre_Departure.NA,
+  #        Overall_Impression.NA) %>% 
+  names()
+
+# Standardization
+ScaleParams <- preProcess(tour.ann[split, vars.ann], method=c("center", "scale"))
+tour.ann[vars.ann]<-predict(ScaleParams, tour.ann[vars.ann])
+
+# Dummy Encoding
+dummy <- dummyVars( ~ ., data = tour.ann[split, vars.ann], fullRank = TRUE)
+tour.ann.encode<-as.data.frame(predict(dummy,  tour.ann[vars.ann])) 
+tour.ann.encode$Book_12Mo <- tour.ann$Book_12Mo
+
+## Prepare train/validation sets as matrices ##
+inp.n <- grep("^(Book_12Mo)", names(tour.ann.encode)) 
+
+x.train <- as.matrix(tour.ann.encode[split,-inp.n])
+y.train<- as.matrix(tour.ann.encode[split,"Book_12Mo"])
+x.valid<-as.matrix(tour.ann.encode[split.valid,-inp.n])
+y.valid<-as.matrix(tour.ann.encode[split.valid,"Book_12Mo"])
+```
+
+
+```{r, warning=FALSE}
+use_session_with_seed(40703)
+ann <- keras_model_sequential() 
+
+# create the hidden layers
+# we must specify input_shape = # of input variables for the first hidden layer
+# number of input variables is ncol(data.ann.encode) - 1
+ann %>% 
+  layer_dense(units = 6, activation = "sigmoid", input_shape = c(122)) %>% 
+  layer_dense(units = 6, activation = "sigmoid") %>%
+  layer_dense(units = 6, activation = "sigmoid") %>%
+  # output layer
+  layer_dense(units = 1, activation = "exponential")
+
+
+
+ann %>% compile(
+  # loss = how we calculate error
+  loss = "binary_crossentropy",
+  optimizer = "adam",
+  # metrics tells us what assessment metrics we want to evaluate for training and validation
+  # accuracy = 1 - misclassification rate
+  metrics = "accuracy"
+)
+
+
+
+callbacks.list = list(
+  callback_early_stopping(
+    monitor = "val_loss",
+    patience = 5
+    ),
+  callback_model_checkpoint(
+    filepath="my_ann.h5",
+    monitor = "val_loss",
+    save_best_only = TRUE
+    )
+  )
+
+
+
+history <- ann %>% fit(
+  x= x.train,
+  y= y.train,
+  # epochs = number of iterations
+  epochs = 40,
+  validation_data = list(x.valid,y.valid),
+  # verbose = similar to step function's "trace"
+  # i.e. do you want to track the results of each iteration?
+  verbose = 1,
+  callbacks = callbacks.list
+)
+
+```
+
+```{r}
+ann.select <-load_model_hdf5("my_ann.h5") 
+
+## Prediction ##
+ann.prob <- predict_proba(ann.select,x.valid)
+
+# Use alternative cutoff
+rocCurve.ann <- roc(tour.imp[split.valid,]$Book_12Mo, ann.prob, quiet=TRUE)
+annThresh <-  coords(rocCurve.ann, x = "best", best.method = "closest.topleft", transpose = FALSE)
+ann.class <- as.factor(ifelse(ann.prob >= annThresh$threshold, 1,0))
+ann.fscore<-confusionMatrix(table(ann.class,tour.imp[split.valid,]$Book_12Mo),
+                            positive = "1")$byClass["F1"]
+
+ann.fscore  # f-score=0.5029906
+
+confusionMatrix(table(ann.class,tour.imp[split.valid,]$Book_12Mo),
+                positive = "1", mode= "everything")
+
+
+# Lift curve (I don't think this accounts for alternative cutoff)
+pred.eva <- prediction(ann.prob, tour.imp[split.valid,]$Book_12Mo)
+train.prob <- predict_proba(ann.select,x.train)
+pred<-prediction(train.prob, tour.imp[split,]$Book_12Mo)
+
+perf.eva <- performance(pred.eva,"lift","rpp")
+perf <- performance(pred,"lift","rpp")
+
+plot(perf, col='blue',  main="Lift Curve")
+plot(perf.eva, col= 'red', add = TRUE,main="Lift Curve")
+legend('topright', legend=c('train.ann', 'valid.ann'), col=c("blue","red"),lty=c(1,1))
+
+```
+
+
+  
+
+
+
+
+
