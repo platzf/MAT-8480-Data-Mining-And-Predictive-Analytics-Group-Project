@@ -1,0 +1,46 @@
+---
+title: "Scoring with RF"
+author: "Faith Platz"
+date: "11/23/2019"
+output: pdf_document
+---
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(randomForest)
+```
+
+
+```{r}
+load("scoring_cleaned.RData")
+load("RF.RData")
+
+# use alternative cutoff to classify Book_12Mo
+RF.prob <- predict(RF, newdata=tour.score, type="prob")[,2]
+RF.class <- as.factor(ifelse(RF.prob >= RFThresh$threshold, 1,0))
+tour.score["pred.Book_12Mo"] <- data.frame(RF.class)
+
+# add the EvalID back in
+tour.score.results <- read_csv("scoring_data.csv") %>% 
+  dplyr::select(EvalID) %>% 
+  bind_cols(tour.score) %>%
+  dplyr::select(EvalID, pred.Book_12Mo)
+
+# write to a csv (commented out after running)
+# write_csv(tour.score.results, "tour.score.results.csv")
+```
+
+```{r}
+# check against Irina's
+load("ip.rf.model.score.RData")
+irina <- RF.class.score.dat %>%
+  as.data.frame()
+
+names(irina) <- "pred.Book_12Mo"
+
+tour.score.results %>% 
+  dplyr::select(pred.Book_12Mo) %>% 
+  anti_join(irina) # there were 0 observations that were mismatched :)
+```
+
+
