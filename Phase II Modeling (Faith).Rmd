@@ -23,10 +23,8 @@ load("tour_cleaned.RData")
 tour.ann <- tour.imp
 vars.ann <- tour.ann %>% 
   select(-Book_12Mo) %>% 
-  # select(Email, State.binned, TourCode.binned, Pax_Category, Pre_Departure,
-  #        Past_Trips, Overall_Impression, DB_Enter_Months_num, Book_Months_num,
-  #        Hotel_3orAbove, State.binned.NA, TourCode.binned.NA, Pre_Departure.NA,
-  #        Overall_Impression.NA) %>% 
+  # select(Past_Trips, Email, TourCode.binned, TravelAgain, State.binned,
+  #        Age_num, SourceType.binned, Meals_Avg, Overall_Impression) %>%
   names()
 
 # Standardization
@@ -118,24 +116,43 @@ ann.fscore<-confusionMatrix(table(ann.class,tour.imp[split.valid,]$Book_12Mo),
 
 ann.fscore  # f-score=0.5029906
 
-confusionMatrix(table(ann.class,tour.imp[split.valid,]$Book_12Mo),
-                positive = "1", mode= "everything")
+# confusionMatrix(table(ann.class,tour.imp[split.valid,]$Book_12Mo),
+#                 positive = "1", mode= "everything")
+```
 
-
-# Lift curve (I don't think this accounts for alternative cutoff)
+```{r}
+# Lift curve
 pred.eva <- prediction(ann.prob, tour.imp[split.valid,]$Book_12Mo)
 train.prob <- predict_proba(ann.select,x.train)
 pred<-prediction(train.prob, tour.imp[split,]$Book_12Mo)
 
-perf.eva <- performance(pred.eva,"lift","rpp")
+perf.eva.ann <- performance(pred.eva,"lift","rpp")
 perf <- performance(pred,"lift","rpp")
 
 plot(perf, col='blue',  main="Lift Curve")
-plot(perf.eva, col= 'red', add = TRUE,main="Lift Curve")
+plot(perf.eva.ann, col= 'red', add = TRUE,main="Lift Curve")
 legend('topright', legend=c('train.ann', 'valid.ann'), col=c("blue","red"),lty=c(1,1))
 
+save(perf.eva.ann, file = "liftANN.RData")
 ```
 
+
+```{r}
+# Combined Lift Graph
+load("liftANN.RData")
+load("liftreg.RData")
+load("perfevatree.RData")
+load("random.forest.lift.Rdata")
+
+plot(perf, col='blue',  main="Lift Curve")
+plot(perf.eva.ann, col= 'red', add = TRUE,main="Lift Curve")
+plot(perf.eva.reg, col= 'green', add = TRUE,main="Lift Curve")
+plot(perf.eva.tree, col= 'purple', add = TRUE,main="Lift Curve")
+plot(perf.eva.random.forest, col= 'magenta', add = TRUE,main="Lift Curve")
+legend('topright', legend=c('Training Data', 'ANN', "Logistic Regression", "Decision Tree",
+                            "Random Forest"), 
+       col=c("blue","red", "green", "purple", "magenta"),lty=c(1,1))
+```
 
   
 
