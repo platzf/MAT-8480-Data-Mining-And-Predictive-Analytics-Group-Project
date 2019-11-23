@@ -16,6 +16,7 @@ library(caTools)
 
 # Read in Data
 ```{r, message=FALSE}
+select <- dplyr::select
 #Preparing data and drop variables
 tour <- read_csv("modeling_data.csv")
 drop.vars <- c(grep("ID$|Trip_no|Grp_Size_Cat|^(Poor|Fair|Good|Excellent)", names(tour)))
@@ -149,7 +150,7 @@ tour.xf$Outbound_Connect_Time_Mins_2 = ifelse(tour.xf$Outbound_Connections %in% 
 tour.xf$Return_Connect_Time_Mins_1 = ifelse(tour.xf$Return_Connections == 0, 0, 
                                       ifelse(tour.xf$Return_Connect_Time_Mins_1 <= 0, NA, tour.xf$Return_Connect_Time_Mins_1))
 tour.xf$Return_Connect_Time_Mins_2 = ifelse(tour.xf$Return_Connections %in% c(0, 1), 0, 
-                                      ifelse(tour.xf$Outbound_Connect_Time_Mins_2 <= 0, NA, tour.xf$Outbound_Connect_Time_Mins_2))
+                                      ifelse(tour.xf$Return_Connect_Time_Mins_2 <= 0, NA, tour.xf$Outbound_Connect_Time_Mins_2))
 
 # Force extremely high values into NAs for later imputation of "more reasonable" values
 tour.xf %>% select(contains("_Mins_")) %>% 
@@ -186,7 +187,16 @@ levels(tour.bin$SourceType.binned) <- c("Other", "Internet+Referral", "Old Src I
 ```{r}
 tour.final <- tour.bin %>%
   select(-TourCode, -SourceType, -State, -Tour_Region) %>%
-  mutate_if(is.character, as.factor)
+  mutate_if(is.character, as.factor) %>% 
+  mutate(Recommend_GAT = as.factor(Recommend_GAT),
+         TravelAgain = as.factor(TravelAgain),
+         Groups_Interest = as.factor(Groups_Interest),
+         Reference = as.factor(Reference),
+         Extension = as.factor(Extension),
+         Insurance = as.factor(Insurance),
+         FltGty = as.factor(FltGty),
+         Complaint_Event = as.factor(Complaint_Event),
+         Voucher_Event = as.factor(Voucher_Event))
 
 # write final data set to csv
 #write_csv(tour.final, "~/Documents/MAT 8480 - Data Mining/Project/tour.final.csv")
@@ -252,7 +262,7 @@ tour.imp[paste(names(tour.final)[index.na], "NA", sep=".")] <- ifelse(
 tour.imp[grep("NA$",names(tour.imp))]<-lapply(
   tour.imp[grep("NA$",names(tour.imp))], as.factor) 
 
-save(tour.imp, Mean, Mode, split, split.valid, split.test, file="tour_cleaned.RData")
+save(tour.imp, Mean, Mode, split, split.valid, split.test, binning, file="tour_clean_bin.RData")
 
 #load("tour_cleaned.RData")
 ```
