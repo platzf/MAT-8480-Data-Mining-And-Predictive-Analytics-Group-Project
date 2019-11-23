@@ -11,7 +11,7 @@ library(randomForest)
 ```
 
 
-```{r}
+```{r, message=FALSE}
 load("scoring_cleaned.RData")
 load("RF.RData")
 
@@ -24,11 +24,13 @@ tour.score["pred.Book_12Mo"] <- data.frame(RF.class)
 tour.score.results <- read_csv("scoring_data.csv") %>% 
   dplyr::select(EvalID) %>% 
   bind_cols(tour.score) %>%
-  dplyr::select(EvalID, pred.Book_12Mo)
+  dplyr::select(EvalID, pred.Book_12Mo) %>% 
+  mutate_all(as.factor)
 
 # write to a csv (commented out after running)
 # write_csv(tour.score.results, "tour.score.results.csv")
 ```
+
 
 ```{r}
 # check against Irina's
@@ -37,10 +39,23 @@ irina <- RF.class.score.dat %>%
   as.data.frame()
 
 names(irina) <- "pred.Book_12Mo"
+irina$pred.Book_12Mo <- as.factor(irina$pred.Book_12Mo)
 
 tour.score.results %>% 
   dplyr::select(pred.Book_12Mo) %>% 
   anti_join(irina) # there were 0 observations that were mismatched :)
+
+
+# Check against Alex's
+load("alex_RF_results.RData")
+alex <- tour.score %>%
+  dplyr::select(RF.class) %>% 
+  rename("pred.Book_12Mo" = "RF.class") %>% 
+  mutate_all(as.factor)
+
+tour.score.results %>% 
+  dplyr::select(pred.Book_12Mo) %>% 
+  anti_join(alex) 
 ```
 
 
