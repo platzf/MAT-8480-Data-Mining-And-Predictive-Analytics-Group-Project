@@ -1,0 +1,60 @@
+---
+title: "Random Forest Model"
+author: "Faith Platz"
+date: "11/22/2019"
+output: pdf_document
+---
+
+```{r, message=FALSE, warning=FALSE}
+library(randomForest)
+library(caret)
+library(pROC)
+library(ROCR)
+```
+
+```{r}
+load("tour_clean_bin.RData")
+```
+
+# Build RF
+```{r}
+minor <- unname(summary(tour.imp$Book_12Mo[split])[2])
+
+set.seed(40703)
+RF <- randomForest(Book_12Mo ~., data=tour.imp[split, ], ntree = 1301, mtry=5, 
+            strata = tour.imp$Book_12Mo[split], sampsize=c(minor, minor), importance=FALSE)
+
+print(RF)
+plot(RF)
+```
+
+```{r}
+# alternative cutoff (validation)
+RF.prob <- predict(RF, newdata=tour.imp[split.valid,], type="prob")[,2]
+rocCurve.RF <- roc(tour.imp[split.valid,]$Book_12Mo, RF.prob, quiet=TRUE)
+RFThresh <-  coords(rocCurve.RF, x = "best", best.method = "closest.topleft", transpose = FALSE)
+RF.class <- as.factor(ifelse(RF.prob >= RFThresh$threshold, 1,0))
+RF.fscore<-confusionMatrix(table(RF.class,tour.imp[split.valid,]$Book_12Mo),
+                            positive = "1")$byClass["F1"]
+
+# save as R object for future scoring
+save(RF, RFThresh, file = "RF.RData")
+
+
+# alternative cutoff (test)
+RF.prob.test <- predict(RF, newdata=tour.imp[split.test,], type="prob")[,2]
+rocCurve.RF.test <- roc(tour.imp[split.test,]$Book_12Mo, RF.prob.test, quiet=TRUE)
+RFThresh.test <-  coords(rocCurve.RF.test, x = "best", best.method = "closest.topleft", 
+                         transpose = FALSE)
+RF.class.test <- as.factor(ifelse(RF.prob.test >= RFThresh.test$threshold, 1,0))
+RF.fscore.test <-confusionMatrix(table(RF.class.test,tour.imp[split.test,]$Book_12Mo),
+                            positive = "1")$byClass["F1"]
+```
+
+
+
+
+
+
+
+
