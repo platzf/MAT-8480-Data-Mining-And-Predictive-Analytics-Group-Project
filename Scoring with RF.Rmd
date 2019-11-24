@@ -15,6 +15,14 @@ library(randomForest)
 load("scoring_cleaned.RData")
 load("RF.RData")
 
+# need to add in the missing value flags that were not created with scoring data
+tour.score <- tour.score %>% 
+  mutate(Book_Months_num.NA = as.factor(0),
+         Optionals_Bin.NA = as.factor(0),
+         TourWeek.NA = as.factor(0),
+         Tour_Region.binned.NA = as.factor(0))
+
+
 # use alternative cutoff to classify Book_12Mo
 RF.prob <- predict(RF, newdata=tour.score, type="prob")[,2]
 RF.class <- as.factor(ifelse(RF.prob >= RFThresh$threshold, 1,0))
@@ -28,7 +36,7 @@ tour.score.results <- read_csv("scoring_data.csv") %>%
   mutate_all(as.factor)
 
 # write to a csv (commented out after running)
-# write_csv(tour.score.results, "tour.score.results.csv")
+# write_csv(tour.score.results, "tour.score.results.update.csv")
 ```
 
 
@@ -47,7 +55,7 @@ irina <- read_csv("scoring_data.csv") %>%
   mutate_all(as.factor)
 
 tour.score.results %>% 
-  anti_join(irina) # 454 mismatches
+  anti_join(irina) # 359 mismatches
 
 
 # Check against Alex's
@@ -63,7 +71,7 @@ alex <- read_csv("scoring_data.csv") %>%
   mutate_all(as.factor)
 
 tour.score.results %>% 
-  anti_join(alex) # 538 mismatches
+  anti_join(alex) # 533 mismatches
 
 # check against James'
 james0 <- read_csv("James.score.csv") %>% 
@@ -77,7 +85,7 @@ james <- read_csv("scoring_data.csv") %>%
   mutate_all(as.factor)
 
 tour.score.results %>% 
-  anti_join(james) # 454 mismatches
+  anti_join(james) # 359 mismatches
 ```
 
 
