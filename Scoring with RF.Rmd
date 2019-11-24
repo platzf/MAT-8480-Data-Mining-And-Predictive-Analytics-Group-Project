@@ -35,27 +35,49 @@ tour.score.results <- read_csv("scoring_data.csv") %>%
 ```{r}
 # check against Irina's
 load("ip.rf.model.score.RData")
-irina <- RF.class.score.dat %>%
+irina0 <- RF.class.score.dat %>%
   as.data.frame()
 
-names(irina) <- "pred.Book_12Mo"
-irina$pred.Book_12Mo <- as.factor(irina$pred.Book_12Mo)
+names(irina0) <- "pred.Book_12Mo"
+
+irina <- read_csv("scoring_data.csv") %>% 
+  dplyr::select(EvalID) %>% 
+  bind_cols(irina0) %>%
+  dplyr::select(EvalID, pred.Book_12Mo) %>% 
+  mutate_all(as.factor)
 
 tour.score.results %>% 
-  dplyr::select(pred.Book_12Mo) %>% 
-  anti_join(irina) # there were 0 observations that were mismatched :)
+  anti_join(irina) # 454 mismatches
 
 
 # Check against Alex's
 load("alex_RF_results.RData")
-alex <- tour.score %>%
+alex0 <- tour.score %>%
   dplyr::select(RF.class) %>% 
-  rename("pred.Book_12Mo" = "RF.class") %>% 
+  rename("pred.Book_12Mo" = "RF.class")
+
+alex <- read_csv("scoring_data.csv") %>% 
+  dplyr::select(EvalID) %>% 
+  bind_cols(alex0) %>%
+  dplyr::select(EvalID, pred.Book_12Mo) %>% 
   mutate_all(as.factor)
 
 tour.score.results %>% 
-  dplyr::select(pred.Book_12Mo) %>% 
-  anti_join(alex) 
+  anti_join(alex) # 538 mismatches
+
+# check against James'
+james0 <- read_csv("James.score.csv") %>% 
+  rename("pred.Book_12Mo" = "x") %>% 
+  dplyr::select(pred.Book_12Mo)
+
+james <- read_csv("scoring_data.csv") %>% 
+  dplyr::select(EvalID) %>% 
+  bind_cols(james0) %>%
+  dplyr::select(EvalID, pred.Book_12Mo) %>% 
+  mutate_all(as.factor)
+
+tour.score.results %>% 
+  anti_join(james) # 454 mismatches
 ```
 
 
